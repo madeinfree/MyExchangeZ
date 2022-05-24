@@ -1,8 +1,9 @@
-import { useProvider, useConnect, useAccount } from 'wagmi'
+import { useState } from 'react'
 import AppBar from '../components/AppBar'
-import MintBlock from '../components/MintBlock'
+import UIBlock from '../components/UIBlock'
 
 export default function Index() {
+  const [router, setRouter] = useState('/addLiquidity')
   /**
    * @dev workaround for avoid server side render.
    */
@@ -10,13 +11,12 @@ export default function Index() {
   React.useEffect(() => {
     setMounted(true)
   }, [])
-
   if (!mounted) return null
 
   return (
     <div>
-      <AppBar />
-      <MintBlock />
+      <AppBar setRouter={setRouter} />
+      <UIBlock router={router} />
     </div>
   )
 }

@@ -1,42 +1,45 @@
-# Welcome to WAGMI NFT Frontend Booster
+# MyToken Exchange Implementation
 
-<p align="center">WAGMI ! Write less, Do more</p>
+## AMM 去中心化自動造市商交易所實踐開源
 
-<p align="center"> 
-  <img src="./readme.gif" alt="drawing" width="600"/>
-</p>
+### Rinkeby 合約
 
-## Installation
+#### 代幣合約
 
-### clone project
+[MyTokenEX3](https://rinkeby.etherscan.io/address/0xd63f40227B9CEd07482ceaD26A2bC66f214fEc10)
 
-```
-$ git clone git@github.com:madeinfree/wagmi-nft-fronend-booster.git
-$ cd wagmi-nft-fronend-booster
-```
+#### 流動池合約
 
-### install dependency
+[Exchange](https://rinkeby.etherscan.io/address/0x1b4161853f39048c47c28496f2c362ec925c48e9)
 
-```
-$ npm i
-```
+### 功能
 
-### setting .env
+- 授權代幣
+- 添加流動性
+- 移除流動性
+- ETH 兌換代幣
 
-change `.env-example` to `.env` file name, update environment variable and save file.
+### 介面圖片
 
-```
-CONTRACT_ADDRESS= # replace to your testnet contract address
-INFURA_ID= # support infura now, use your infura id
-```
+添加流動性
 
-### run dev
+![](./images/add.png)
 
-```
-$ npm run dev
-```
+移除流動性
 
-Now all done, happy hacking !!
+![](./images/remove.png)
+
+兌換代幣
+
+![](./images/swap.png)
+
+其他人兌換代幣
+
+![](./images/other.png)
+
+## 使用框架
+
+[WAGMI](https://github.com/madeinfree/wagmi-nft-fronend-booster)
 
 ## LISCENSE
 
