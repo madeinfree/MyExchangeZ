@@ -220,21 +220,26 @@ export default function UIBlock({ router }) {
         MultiSigGovernment,
         provider
       )
+      const promises = []
       for (let i = 0; i < txCountNumber; i++) {
-        multiSigGov
-          .getTransaction(utils.solidityPack(['uint256'], [i]))
-          .then((r) => {
-            setGovernmentTx([
-              {
-                fee: r[0].toNumber(),
-                executed: r[1],
-                numConfirmations: r[2].toNumber(),
-              },
-              ...governmentTx,
-            ])
+        promises.push(
+          new Promise((resolve, reject) => {
+            multiSigGov
+              .getTransaction(utils.solidityPack(['uint256'], [i]))
+              .then((r) =>
+                resolve({
+                  fee: r.fee.toNumber(),
+                  executed: r.executed,
+                  numConfirmations: r.numConfirmations.toNumber(),
+                })
+              )
+              .catch((err) => console.log(err))
           })
-          .catch((err) => console.log(err))
+        )
       }
+      Promise.all(promises).then((results) => {
+        setGovernmentTx(results)
+      })
     }
   }, [txCount])
 
