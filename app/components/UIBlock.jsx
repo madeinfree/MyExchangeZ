@@ -108,10 +108,7 @@ export default function UIBlock({ router }) {
     method: 'addLiquidity',
     provider,
     abi: MyExchange,
-    args: [
-      inputETH ? parseEther(inputETH.toString()) : 0,
-      inputToken ? parseEther(inputToken.toString()) : 0,
-    ],
+    args: [parseEther('0'), inputToken ? parseEther(inputToken.toString()) : 0],
     overrides: {
       value: inputETH ? parseEther(inputETH.toString()) : 0,
     },
@@ -199,6 +196,7 @@ export default function UIBlock({ router }) {
                   type="number"
                   className="form-control"
                   placeholder="數量"
+                  disabled={!accountData}
                   onChange={(e) => setInputETH(Number(e.target.value))}
                 />
                 <span className="input-group-text">
@@ -215,6 +213,7 @@ export default function UIBlock({ router }) {
                   type="number"
                   className="form-control"
                   placeholder="數量"
+                  disabled={!accountData}
                   onChange={(e) => setInputToken(Number(e.target.value))}
                 />
                 <span className="input-group-text">
@@ -256,6 +255,7 @@ export default function UIBlock({ router }) {
                   type="number"
                   className="form-control"
                   placeholder="數量"
+                  disabled={!accountData}
                   onChange={(e) => setInputETH(Number(e.target.value))}
                 />
                 <span className="input-group-text">
@@ -266,6 +266,7 @@ export default function UIBlock({ router }) {
               </div>
             </div>
           ) : null}
+
           {accountData ? (
             allowence ? (
               Number(formatEther(allowence)) === 0 &&
