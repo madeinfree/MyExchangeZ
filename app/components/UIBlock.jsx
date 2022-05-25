@@ -4,11 +4,13 @@ import {
   useProvider,
   useWaitForTransaction,
   useBalance,
+  useSigner,
 } from 'wagmi'
-import { utils } from 'ethers'
+import { utils, Contract } from 'ethers'
 
 import MyToken from '../abi/MyToken'
 import MyExchange from '../abi/MyExchange'
+import MultiSigGovernment from '../abi/MultiSigGovernment'
 import { readContract, writeContract } from '../utils/contract/helper'
 
 import ConnectorButton from './ConnectorButton'
@@ -23,6 +25,8 @@ const formatRouterName = (router) => {
       return '添加流動性'
     case '/removeLiquidity':
       return '移除流動性'
+    case '/government':
+      return '治理提案'
   }
 }
 const formatBtnActionName = (router) => {
@@ -40,24 +44,27 @@ export default function UIBlock({ router }) {
   const provider = useProvider()
   const [inputETH, setInputETH] = useState(0)
   const [inputToken, setInputToken] = useState(0)
+  const [governmentTx, setGovernmentTx] = useState([])
+  const [submitTx, setSubmitTx] = useState({
+    address: '0xad9C86241BF1f715cA4Cfa3bc39a07731D458A4A',
+    fee: 0,
+  })
+
+  const [{ data: signer }] = useSigner()
   const [{ data: accountData }] = useAccount()
   const [{ data: ethBalance }] = useBalance({
     addressOrName: accountData?.address,
   })
+
+  /**
+   * ERC20
+   */
 
   const [{ data: balance }, readBalance] = readContract({
     contract: window.ENV.CONTRACT_ADDRESS_ERC20,
     method: 'balanceOf',
     provider,
     abi: MyToken,
-    args: accountData?.address,
-  })
-
-  const [{ data: LPbalance }, readLPBalance] = readContract({
-    contract: window.ENV.CONTRACT_ADDRESS_EXCHANGE,
-    method: 'balanceOf',
-    provider,
-    abi: MyExchange,
     args: accountData?.address,
   })
 
@@ -84,10 +91,6 @@ export default function UIBlock({ router }) {
     args: [accountData?.address, window.ENV.CONTRACT_ADDRESS_EXCHANGE],
   })
 
-  /**
-   * ERC20
-   */
-
   const [{ data: transactionResponse }, approveToken] = writeContract({
     contract: window.ENV.CONTRACT_ADDRESS_ERC20,
     method: 'approve',
@@ -102,6 +105,21 @@ export default function UIBlock({ router }) {
   /**
    * Exchange
    */
+
+  const [{ data: LPbalance }, readLPBalance] = readContract({
+    contract: window.ENV.CONTRACT_ADDRESS_EXCHANGE,
+    method: 'balanceOf',
+    provider,
+    abi: MyExchange,
+    args: accountData?.address,
+  })
+
+  const [{ data: fee }] = readContract({
+    contract: window.ENV.CONTRACT_ADDRESS_EXCHANGE,
+    method: 'fee',
+    provider,
+    abi: MyExchange,
+  })
 
   const [{ data: addLiquidityTxResponse }, addLiquidity] = writeContract({
     contract: window.ENV.CONTRACT_ADDRESS_EXCHANGE,
@@ -134,12 +152,43 @@ export default function UIBlock({ router }) {
       },
     })
 
+  /**
+   * MultiSigGovernment
+   */
+  const [{ data: isOwner }, readIsOwner] = readContract({
+    contract: window.ENV.CONTRACT_ADDRESS_GOVERNMENT,
+    method: 'isOwner',
+    provider,
+    abi: MultiSigGovernment,
+    args: [accountData?.address],
+  })
+
+  const [{ data: txCount }, readTxCount] = readContract({
+    contract: window.ENV.CONTRACT_ADDRESS_GOVERNMENT,
+    method: 'getTransactionCount',
+    provider,
+    abi: MultiSigGovernment,
+  })
+
+  const [{ data: submitTransactionResponse }, submitTransaction] =
+    writeContract({
+      contract: window.ENV.CONTRACT_ADDRESS_GOVERNMENT,
+      method: 'submitTransaction',
+      provider,
+      abi: MultiSigGovernment,
+      args: [submitTx.address, submitTx.fee],
+    })
+
   const [{ loading: addLiquidityTxLoading }] = useWaitForTransaction({
     hash: addLiquidityTxResponse?.hash,
   })
 
   const [{ loading: removeLiquidityTxLoading }] = useWaitForTransaction({
     hash: removeLiquidityTxResponse?.hash,
+  })
+
+  const [{ loading: submitTransactionLoading }] = useWaitForTransaction({
+    hash: submitTransactionResponse?.hash,
   })
 
   const [{ loading: ethToTokenTransferInputTxLoading }] = useWaitForTransaction(
@@ -159,7 +208,35 @@ export default function UIBlock({ router }) {
     readBalanceOfExchange()
     readAllowence()
     readLPBalance()
+    readIsOwner()
+    readTxCount()
   }, [accountData?.address, transactionLoading])
+
+  useEffect(() => {
+    const txCountNumber = txCount?.toNumber()
+    if (txCountNumber > 0) {
+      const multiSigGov = new Contract(
+        window.ENV.CONTRACT_ADDRESS_GOVERNMENT,
+        MultiSigGovernment,
+        provider
+      )
+      for (let i = 0; i < txCountNumber; i++) {
+        multiSigGov
+          .getTransaction(utils.solidityPack(['uint256'], [i]))
+          .then((r) => {
+            setGovernmentTx([
+              {
+                fee: r[0].toNumber(),
+                executed: r[1],
+                numConfirmations: r[2].toNumber(),
+              },
+              ...governmentTx,
+            ])
+          })
+          .catch((err) => console.log(err))
+      }
+    }
+  }, [txCount])
 
   return (
     <div
@@ -241,8 +318,8 @@ export default function UIBlock({ router }) {
           {router === '/swap' ? (
             <div>
               <div>
-                交易所{symbol} 餘額{' '}
-                {balanceOfExchange ? formatEther(balanceOfExchange) : 0.0}
+                交易所 {symbol} 餘額{' '}
+                {balanceOfExchange ? formatEther(balanceOfExchange) : 0.0}{' '}
               </div>
               <div className="input-group mb-3">
                 <span className="input-group-text" id="eth">
@@ -263,7 +340,132 @@ export default function UIBlock({ router }) {
                     ? Number(formatEther(ethBalance.value)).toFixed(3)
                     : '0.0'}
                 </span>
+                <span className="input-group-text">
+                  {fee
+                    ? Number(1 - fee.toNumber() / 1000).toFixed(3) * 100 + '%'
+                    : 0}
+                </span>
               </div>
+            </div>
+          ) : null}
+
+          {router === '/government' ? (
+            <div>
+              <div style={{ textAlign: 'center' }}>
+                進行中提案({txCount ? txCount.toNumber() : 0})
+                <table className="table table-striped">
+                  <thead>
+                    <tr>
+                      <th scope="col">#</th>
+                      <th scope="col">手續費用</th>
+                      <th scope="col">執行狀態</th>
+                      <th scope="col">簽署人數</th>
+                      <th scope="col">功能</th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    style={{
+                      verticalAlign: 'middle',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {governmentTx.length
+                      ? governmentTx.map((tx, index) => {
+                          return (
+                            <tr key={index}>
+                              <th scope="row">{index}</th>
+                              <td>{tx.fee}</td>
+                              <td>
+                                {tx.executed ? (
+                                  '已執行'
+                                ) : tx.numConfirmations >= 2 ? (
+                                  <button
+                                    className="btn btn-warning btn-sm"
+                                    disabled={!isOwner}
+                                    onClick={() => {
+                                      const multiSigGov = new Contract(
+                                        window.ENV.CONTRACT_ADDRESS_GOVERNMENT,
+                                        MultiSigGovernment,
+                                        signer
+                                      )
+                                      multiSigGov.executeTransaction(index)
+                                    }}
+                                  >
+                                    開始執行
+                                  </button>
+                                ) : (
+                                  '尚可執行'
+                                )}
+                              </td>
+                              <td>{tx.numConfirmations}</td>
+                              <td>
+                                {tx.executed ? (
+                                  '已結束'
+                                ) : (
+                                  <button
+                                    disabled={!isOwner}
+                                    className="btn btn-primary btn-dark btn-sm"
+                                    onClick={() => {
+                                      const multiSigGov = new Contract(
+                                        window.ENV.CONTRACT_ADDRESS_GOVERNMENT,
+                                        MultiSigGovernment,
+                                        signer
+                                      )
+                                      multiSigGov.confirmTransaction(index)
+                                    }}
+                                  >
+                                    執行簽署
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      : null}
+                  </tbody>
+                </table>
+              </div>
+              <br />
+              <div
+                style={{
+                  padding: 20,
+                  border: '1px solid #ccc',
+                  borderRadius: 5,
+                  textAlign: 'center',
+                }}
+              >
+                <div className="input-group mb-3">
+                  <span className="input-group-text" id="eth">
+                    配對合約
+                  </span>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="合約地址"
+                    disabled={true}
+                    value={submitTx.address}
+                  />
+                </div>
+                <div className="input-group">
+                  <span className="input-group-text" id="eth">
+                    手續費
+                  </span>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="手續費用調整"
+                    disabled={!accountData}
+                    value={submitTx.fee}
+                    onChange={(e) =>
+                      setSubmitTx({
+                        ...submitTx,
+                        fee: Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <br />
             </div>
           ) : null}
 
@@ -328,7 +530,23 @@ export default function UIBlock({ router }) {
                   >
                     {formatBtnActionName(router)}
                   </button>
-                ))
+                )) ||
+                (router === '/government' &&
+                  (isOwner ? (
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={
+                        submitTx.address === '' ||
+                        submitTx.fee <= 0 ||
+                        submitTransactionLoading
+                      }
+                      onClick={() => {
+                        submitTransaction()
+                      }}
+                    >
+                      送出提案
+                    </button>
+                  ) : null))
               )
             ) : (
               <div className="spinner-border" role="status">

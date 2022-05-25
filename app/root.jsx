@@ -33,6 +33,7 @@ export async function loader() {
     ENV: {
       CONTRACT_ADDRESS_ERC20: process.env.CONTRACT_ADDRESS_ERC20,
       CONTRACT_ADDRESS_EXCHANGE: process.env.CONTRACT_ADDRESS_EXCHANGE,
+      CONTRACT_ADDRESS_GOVERNMENT: process.env.CONTRACT_ADDRESS_GOVERNMENT,
       INFURA_ID: process.env.INFURA_ID,
     },
   })

@@ -36,6 +36,12 @@ export default function AppBar({ setRouter }) {
         >
           流動性管理
         </div>
+        <div
+          style={{ cursor: 'pointer' }}
+          onClick={() => setRouter('/government')}
+        >
+          治理提案
+        </div>
       </div>
       <div>
         {accountData?.address ? (
